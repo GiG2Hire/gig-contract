@@ -1,4 +1,4 @@
 forge-std/=lib/forge-std/src/
 @chainlink/=/node_modules/@chainlink
-openzeppelin-contracts/=/home/trauslamen/Blockchain_Projects/gig-contracts/lib/openzeppelin-contracts
-aave/aave-v3-core/=/home/trauslamen/Blockchain_Projects/gig-contracts/lib/aave-v3-core
+openzeppelin-contracts/=/lib/gig-contracts/lib/openzeppelin-contracts
+aave/aave-v3-core/=/lib/gig-contracts/lib/aave-v3-core
