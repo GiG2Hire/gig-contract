@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import {IERC20} from "@chainlink/contracts-ccip/src/v0.8/vendor/openzeppelin-solidity/v4.8.0/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@chainlink/contracts-ccip/src/v0.8/vendor/openzeppelin-solidity/v4.8.0/contracts/token/ERC20/utils/SafeERC20.sol";
-import {IPool} from "@aave/core-v3/contracts/interfaces/IPool.sol";
+import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IPool} from "aave/aave-v3-core/contracts/interfaces/IPool.sol";
 
 contract USDCPayment {
     using SafeERC20 for IERC20;
@@ -13,21 +13,40 @@ contract USDCPayment {
     IPool public immutable i_pool;
     IERC20 public immutable i_usdc;
 
+    address public team_wallet; // safe wallet address
+
     error AmountIsZero();
+    error IncorrectAmount(uint256 amount);
     error TransferFailed();
     error IncorrectTokenAmount();
     error IncorrectAmountId();
     error NotOwner();
     error InvalidUsdcToken();
+    error IncorrectWalletAddress();
 
     event ProposalOpened(bytes32 id, uint256 amount, address initiator);
     event ProposalClosed(bytes32 id, address freelancer);
+    event WalletChanged(address curr_wallet, address new_wallet);
+    event WithdrawUSDC(address receiver, uint256 amount);
+    event WithdrawETH(address receiver, uint256 amount);
 
-    constructor(address _addressPool, address _usdcAddress) {
+    modifier onlyTeam() {
+        if (msg.sender != team_wallet) {
+            revert IncorrectWalletAddress();
+        }
+        _;
+    }
+
+    constructor(
+        address _addressPool,
+        address _usdcAddress,
+        address _teamAddress
+    ) {
         if (_usdcAddress == address(0)) revert InvalidUsdcToken();
         i_pool = IPool(_addressPool);
         i_usdc = IERC20(_usdcAddress);
-        i_usdc.safeApprove(_addressPool, type(uint256).max);
+        i_usdc.safeIncreaseAllowance(_addressPool, type(uint256).max);
+        team_wallet = _teamAddress;
     }
 
     function openProposal(uint256 _amount) external {
@@ -63,6 +82,33 @@ contract USDCPayment {
         emit ProposalClosed(id, freelancer);
 
         i_pool.withdraw(address(i_usdc), proposalAmount, receiver);
+    }
+
+    function withdrawUSDC(uint256 _amount) public onlyTeam {
+        (uint256 totalCollateralBase, , , , , ) = i_pool.getUserAccountData(
+            address(this)
+        ); // get all lended money from AAVE Pool
+        if (_amount > totalCollateralBase) {
+            revert IncorrectAmount(_amount);
+        }
+        i_usdc.safeTransfer(msg.sender, _amount);
+
+        emit WithdrawUSDC(msg.sender, _amount);
+    }
+
+    function withdrawETH() public onlyTeam {
+        uint256 balance = address(this).balance;
+        (bool success, ) = msg.sender.call{value: balance}("");
+        if (!success) {
+            revert TransferFailed();
+        }
+
+        emit WithdrawETH(msg.sender, balance);
+    }
+
+    function changeTeamWallet(address _newTeamWallet) public onlyTeam {
+        team_wallet = _newTeamWallet;
+        emit WalletChanged(team_wallet, _newTeamWallet);
     }
 
     function getBalance(address _tokenAddress) external view returns (uint256) {

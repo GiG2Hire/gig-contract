@@ -4,8 +4,8 @@ pragma solidity ^0.8.19;
 import {Test} from "forge-std/Test.sol";
 import {USDCPayment} from "../src/PaymentV1.sol";
 import {IUSDC} from "../src/interfaces/IUSDC.sol";
-import {IERC20} from "@chainlink/contracts-ccip/src/v0.8/vendor/openzeppelin-solidity/v4.8.0/contracts/token/ERC20/IERC20.sol";
-import {IPool} from "@aave/core-v3/contracts/interfaces/IPool.sol";
+import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import {IPool} from "aave/aave-v3-core/contracts/interfaces/IPool.sol";
 
 contract USDCPaymentTest is Test {
     USDCPayment private usdcPayment;
@@ -13,9 +13,11 @@ contract USDCPaymentTest is Test {
     address public constant POOL = 0x794a61358D6845594F94dc1DB02A252b5b4814aD; // Arbitrum mainnet Pool
     uint256 public constant TESTING_AMOUNT = 1e6;
 
+    address public testWallet = makeAddr("TEST_WALLET");
+
     function setUp() public {
         vm.createSelectFork(vm.envString("ARBITRUM_RPC_URL"));
-        usdcPayment = new USDCPayment(POOL, USDC);
+        usdcPayment = new USDCPayment(POOL, USDC, testWallet);
     }
 
     function mintTokens() public {
@@ -223,5 +225,14 @@ contract USDCPaymentTest is Test {
             0,
             "Need to delete proposal budget after closing."
         );
+    }
+
+    function test_RevertWithdrawIfNotOwner() public {
+        address tester = makeAddr("test_teamWallet");
+        vm.startPrank(tester);
+        vm.expectRevert(USDCPayment.IncorrectWalletAddress.selector);
+        usdcPayment.withdrawUSDC(TESTING_AMOUNT);
+        vm.expectRevert(USDCPayment.IncorrectWalletAddress.selector);
+        usdcPayment.withdrawETH();
     }
 }
