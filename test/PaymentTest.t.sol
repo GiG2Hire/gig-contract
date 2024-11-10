@@ -235,4 +235,21 @@ contract USDCPaymentTest is Test {
         vm.expectRevert(USDCPayment.IncorrectWalletAddress.selector);
         usdcPayment.withdrawETH();
     }
+
+    function test_SuccessChangeIfOwner() public {
+        vm.startPrank(testWallet);
+        address correct_wallet = makeAddr("correctWalletToChange");
+        vm.expectEmit(true, true, true, true);
+        emit USDCPayment.WalletChanged(testWallet, correct_wallet);
+
+        usdcPayment.changeTeamWallet(correct_wallet);
+    }
+
+    function test_RevertChangeIfNotOwner() public {
+        address tester = makeAddr("test_teamWallet");
+        vm.startPrank(tester);
+        vm.expectRevert(USDCPayment.IncorrectWalletAddress.selector);
+
+        usdcPayment.changeTeamWallet(tester);
+    }
 }
