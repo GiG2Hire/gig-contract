@@ -91,7 +91,7 @@ contract USDCPayment {
         if (_amount > totalCollateralBase) {
             revert IncorrectAmount(_amount);
         }
-        i_usdc.safeTransfer(msg.sender, _amount);
+        i_pool.withdraw(address(i_usdc), _amount, msg.sender);
 
         emit WithdrawUSDC(msg.sender, _amount);
     }
